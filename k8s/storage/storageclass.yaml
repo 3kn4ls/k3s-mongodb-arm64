@@ -1,13 +1,6 @@
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: local-path
-  annotations:
-    storageclass.kubernetes.io/is-default-class: "true"
-provisioner: rancher.io/local-path
-volumeBindingMode: WaitForFirstConsumer
-reclaimPolicy: Retain
----
+# StorageClass personalizado para MongoDB
+# Nota: K3s ya incluye un StorageClass "local-path" por defecto
+# Este StorageClass es específico para MongoDB con configuración optimizada
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
