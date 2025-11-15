@@ -1,194 +1,59 @@
 # Guía de Instalación Detallada
 
-Esta guía cubre el proceso completo de instalación de MongoDB en K3s sobre Raspberry Pi 5.
+Esta guía cubre el proceso de despliegue de MongoDB en un cluster K3s existente sobre Raspberry Pi 5.
 
 ## Tabla de Contenidos
 
-1. [Preparación del Sistema](#preparación-del-sistema)
-2. [Instalación de K3s](#instalación-de-k3s)
-3. [Configuración de MongoDB](#configuración-de-mongodb)
-4. [Despliegue](#despliegue)
-5. [Verificación](#verificación)
-6. [Post-instalación](#post-instalación)
+1. [Verificar Prerrequisitos](#verificar-prerrequisitos)
+2. [Configuración de MongoDB](#configuración-de-mongodb)
+3. [Despliegue](#despliegue)
+4. [Verificación](#verificación)
+5. [Post-instalación](#post-instalación)
+6. [Apéndice: Instalación de K3s](#apéndice-instalación-de-k3s) (si no lo tienes instalado)
 
-## Preparación del Sistema
+## Verificar Prerrequisitos
 
-### 1. Requisitos de Hardware
+### 1. Cluster K3s Instalado
 
-- **Raspberry Pi 5** (recomendado) o Raspberry Pi 4
-- **RAM:** Mínimo 4GB, recomendado 8GB
-- **Almacenamiento:** Mínimo 32GB microSD (recomendado SSD USB)
-- **Red:** Conexión Ethernet (recomendado) o WiFi
+**IMPORTANTE:** Este proyecto asume que ya tienes un cluster K3s funcionando.
 
-### 2. Sistema Operativo
-
-Instalar **Raspberry Pi OS (64-bit)**:
+Verifica que K3s está corriendo:
 
 ```bash
-# Verificar arquitectura
+# Verificar que kubectl está disponible
+kubectl version --client
+
+# Verificar el cluster
+kubectl cluster-info
+
+# Verificar nodos
+kubectl get nodes
+```
+
+Deberías ver algo como:
+
+```
+NAME            STATUS   ROLES                  AGE   VERSION
+raspberrypi5    Ready    control-plane,master   1d    v1.28.x+k3s1
+```
+
+**Si NO tienes K3s instalado**, ve al [Apéndice: Instalación de K3s](#apéndice-instalación-de-k3s) al final de este documento.
+
+### 2. Requisitos del Sistema
+
+- **Raspberry Pi 5** con arquitectura ARM64
+- **RAM:** Mínimo 4GB disponible (8GB recomendado)
+- **Almacenamiento:** Mínimo 20GB libres para datos de MongoDB
+- **Arquitectura:** ARM64 (aarch64)
+
+Verificar arquitectura:
+
+```bash
 uname -m
 # Debe mostrar: aarch64 o arm64
-
-# Actualizar el sistema
-sudo apt-get update
-sudo apt-get upgrade -y
-sudo apt-get dist-upgrade -y
 ```
 
-### 3. Configuración del Sistema
-
-#### Expandir el sistema de archivos
-
-```bash
-sudo raspi-config
-# Navegar a: Advanced Options > Expand Filesystem
-```
-
-#### Configurar memoria (opcional pero recomendado)
-
-Editar `/boot/firmware/config.txt`:
-
-```bash
-sudo nano /boot/firmware/config.txt
-```
-
-Agregar al final:
-
-```
-# Aumentar memoria GPU (reducir para dar más a sistema)
-gpu_mem=16
-
-# Overclock (opcional, ajustar según tu modelo)
-over_voltage=6
-arm_freq=2400
-```
-
-#### Configurar swap (para sistemas con 4GB RAM)
-
-```bash
-# Aumentar swap a 2GB
-sudo dphys-swapfile swapoff
-sudo nano /etc/dphys-swapfile
-# Cambiar CONF_SWAPSIZE=2048
-sudo dphys-swapfile setup
-sudo dphys-swapfile swapon
-```
-
-#### Deshabilitar servicios innecesarios
-
-```bash
-# Deshabilitar Bluetooth (si no se usa)
-sudo systemctl disable bluetooth
-sudo systemctl stop bluetooth
-
-# Deshabilitar servicios gráficos (si es servidor headless)
-sudo systemctl set-default multi-user.target
-```
-
-### 4. Configurar IP estática (recomendado)
-
-Editar `/etc/dhcpcd.conf`:
-
-```bash
-sudo nano /etc/dhcpcd.conf
-```
-
-Agregar al final (ajustar según tu red):
-
-```
-interface eth0
-static ip_address=192.168.1.100/24
-static routers=192.168.1.1
-static domain_name_servers=192.168.1.1 8.8.8.8
-```
-
-Reiniciar:
-
-```bash
-sudo reboot
-```
-
-## Instalación de K3s
-
-### 1. Usando el script automatizado
-
-```bash
-cd k3s-mongodb-arm64/scripts
-chmod +x install-k3s.sh
-./install-k3s.sh
-```
-
-### 2. Instalación manual (alternativa)
-
-#### Configurar cgroups
-
-```bash
-sudo nano /boot/firmware/cmdline.txt
-```
-
-Agregar al final de la línea (sin saltos de línea):
-
-```
-cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory
-```
-
-Reiniciar:
-
-```bash
-sudo reboot
-```
-
-#### Instalar K3s
-
-```bash
-curl -sfL https://get.k3s.io | sh -s - server \
-  --disable traefik \
-  --disable servicelb \
-  --write-kubeconfig-mode 644 \
-  --node-name raspberrypi5
-```
-
-#### Configurar kubectl
-
-```bash
-mkdir -p $HOME/.kube
-sudo cp /etc/rancher/k3s/k3s.yaml $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
-chmod 600 $HOME/.kube/config
-```
-
-#### Verificar instalación
-
-```bash
-kubectl get nodes
-kubectl get pods -A
-```
-
-Deberías ver el nodo en estado "Ready" y varios pods del sistema corriendo.
-
-### 3. Configuración adicional de K3s
-
-#### Alias útiles
-
-```bash
-echo "alias k=kubectl" >> ~/.bashrc
-echo "alias kgp='kubectl get pods'" >> ~/.bashrc
-echo "alias kgs='kubectl get svc'" >> ~/.bashrc
-echo "alias kgn='kubectl get nodes'" >> ~/.bashrc
-source ~/.bashrc
-```
-
-#### Habilitar autocompletado
-
-```bash
-echo 'source <(kubectl completion bash)' >> ~/.bashrc
-echo 'complete -F __start_kubectl k' >> ~/.bashrc
-source ~/.bashrc
-```
-
-## Configuración de MongoDB
-
-### 1. Clonar el repositorio
+### 3. Clonar el Repositorio
 
 ```bash
 cd ~
@@ -196,7 +61,10 @@ git clone https://github.com/tu-usuario/k3s-mongodb-arm64.git
 cd k3s-mongodb-arm64
 ```
 
-### 2. Generar credenciales
+
+## Configuración de MongoDB
+
+### 1. Generar credenciales
 
 #### Opción A: Usando el script (recomendado)
 
@@ -234,7 +102,7 @@ stringData:
   connection-string: mongodb://admin:tu-contraseña-segura-aqui@mongodb-service.mongodb.svc.cluster.local:27017
 ```
 
-### 3. Ajustar recursos (opcional)
+### 2. Ajustar recursos (opcional)
 
 Si tu Raspberry Pi tiene limitaciones de recursos, edita el StatefulSet:
 
@@ -523,3 +391,196 @@ cd ~/k3s-mongodb-arm64/scripts
 ```
 
 **IMPORTANTE:** Haz un backup antes de desinstalar si tienes datos importantes.
+
+---
+
+## Apéndice: Instalación de K3s
+
+**NOTA:** Esta sección es solo si NO tienes K3s instalado. Si ya tienes K3s funcionando, puedes saltar esta sección.
+
+### Requisitos Previos para K3s
+
+- Raspberry Pi OS (64-bit)
+- Al menos 4GB de RAM
+- Conexión a Internet
+
+### Opción 1: Instalación Automatizada (Recomendado)
+
+Usa el script proporcionado:
+
+```bash
+cd ~/k3s-mongodb-arm64/scripts
+chmod +x install-k3s.sh
+./install-k3s.sh
+```
+
+El script realizará:
+1. Verificación del sistema
+2. Configuración de cgroups
+3. Instalación de K3s
+4. Configuración de kubectl
+5. Creación de alias útiles
+
+**Después de ejecutar el script, es probable que necesites reiniciar:**
+
+```bash
+sudo reboot
+```
+
+### Opción 2: Instalación Manual
+
+#### Paso 1: Configurar cgroups
+
+```bash
+sudo nano /boot/firmware/cmdline.txt
+```
+
+Agregar al final de la línea existente (sin crear nueva línea):
+
+```
+cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory
+```
+
+Guardar y reiniciar:
+
+```bash
+sudo reboot
+```
+
+#### Paso 2: Instalar K3s
+
+```bash
+curl -sfL https://get.k3s.io | sh -s - server \
+  --disable traefik \
+  --disable servicelb \
+  --write-kubeconfig-mode 644 \
+  --node-name raspberrypi5
+```
+
+#### Paso 3: Configurar kubectl para usuario no-root
+
+```bash
+mkdir -p $HOME/.kube
+sudo cp /etc/rancher/k3s/k3s.yaml $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+chmod 600 $HOME/.kube/config
+```
+
+#### Paso 4: Verificar instalación
+
+```bash
+kubectl get nodes
+kubectl get pods -A
+```
+
+Deberías ver:
+- Nodo en estado "Ready"
+- Varios pods del sistema corriendo en namespaces kube-system
+
+#### Paso 5: Configuración adicional (Opcional)
+
+Agregar alias útiles:
+
+```bash
+cat >> ~/.bashrc << 'ALIASES'
+# Kubernetes aliases
+alias k=kubectl
+alias kgp='kubectl get pods'
+alias kgs='kubectl get svc'
+alias kgn='kubectl get nodes'
+ALIASES
+
+source ~/.bashrc
+```
+
+Habilitar autocompletado:
+
+```bash
+echo 'source <(kubectl completion bash)' >> ~/.bashrc
+echo 'complete -F __start_kubectl k' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### Verificar que K3s está funcionando correctamente
+
+```bash
+# Ver versión de K3s
+k3s --version
+
+# Ver cluster info
+kubectl cluster-info
+
+# Ver nodos
+kubectl get nodes -o wide
+
+# Ver componentes del sistema
+kubectl get pods -n kube-system
+```
+
+### Optimizaciones para Raspberry Pi (Opcional)
+
+#### Reducir uso de memoria
+
+Editar `/etc/rancher/k3s/config.yaml`:
+
+```yaml
+kubelet-arg:
+  - "kube-api-qps=20"
+  - "kube-api-burst=40"
+  - "max-pods=50"
+```
+
+Reiniciar K3s:
+
+```bash
+sudo systemctl restart k3s
+```
+
+#### Configurar IP estática
+
+Editar `/etc/dhcpcd.conf`:
+
+```bash
+sudo nano /etc/dhcpcd.conf
+```
+
+Agregar al final:
+
+```
+interface eth0
+static ip_address=192.168.1.100/24
+static routers=192.168.1.1
+static domain_name_servers=192.168.1.1 8.8.8.8
+```
+
+Aplicar cambios:
+
+```bash
+sudo systemctl restart dhcpcd
+```
+
+### Solución de Problemas de K3s
+
+#### K3s no inicia
+
+Ver logs:
+
+```bash
+sudo journalctl -u k3s -f
+```
+
+#### Reiniciar K3s
+
+```bash
+sudo systemctl restart k3s
+```
+
+#### Desinstalar K3s (si necesitas empezar de cero)
+
+```bash
+/usr/local/bin/k3s-uninstall.sh
+```
+
+### Una vez K3s esté funcionando...
+
+Regresa a la [Configuración de MongoDB](#configuración-de-mongodb) para continuar con el despliegue de MongoDB.

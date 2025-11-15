@@ -17,27 +17,42 @@ Despliegue completo de MongoDB en un cluster K3s optimizado para Raspberry Pi 5 
 
 ### Prerrequisitos
 
-- Raspberry Pi 5 con Raspberry Pi OS (64-bit)
-- Al menos 4GB de RAM (8GB recomendado)
-- 20GB de espacio libre en disco
-- Conexión a Internet
+- **Cluster K3s ya instalado y funcionando**
+- Raspberry Pi 5 con arquitectura ARM64
+- Al menos 4GB de RAM disponible (8GB recomendado)
+- 20GB de espacio libre en disco para datos de MongoDB
+- `kubectl` configurado y con acceso al cluster
 
-### Instalación en 3 pasos
+### Verificar que K3s está corriendo
 
-1. **Instalar K3s:**
 ```bash
-cd scripts
-./install-k3s.sh
+kubectl get nodes
+kubectl cluster-info
 ```
 
-2. **Generar credenciales de MongoDB:**
+### Despliegue en 2 pasos
+
+1. **Generar credenciales de MongoDB:**
 ```bash
+cd scripts
 ./generate-secrets.sh
 ```
 
-3. **Desplegar MongoDB:**
+2. **Desplegar MongoDB:**
 ```bash
 ./deploy-mongodb.sh
+```
+
+¡Listo! MongoDB estará corriendo en tu cluster K3s en pocos minutos.
+
+### Verificar el despliegue
+
+```bash
+# Ver estado de los pods
+kubectl get pods -n mongodb
+
+# Monitorear el despliegue
+./scripts/monitor-mongodb.sh
 ```
 
 ## 📁 Estructura del Proyecto
@@ -56,14 +71,14 @@ k3s-mongodb-arm64/
 │       ├── secret.yaml.example   # Plantilla de secret
 │       └── README.md             # Guía de secrets
 ├── scripts/                      # Scripts de automatización
-│   ├── install-k3s.sh           # Instalación de K3s
 │   ├── generate-secrets.sh       # Generador de secrets
 │   ├── deploy-mongodb.sh         # Despliegue de MongoDB
 │   ├── uninstall-mongodb.sh      # Desinstalación
 │   ├── backup-mongodb.sh         # Backup manual
 │   ├── restore-mongodb.sh        # Restauración
 │   ├── monitor-mongodb.sh        # Monitoreo
-│   └── setup-cronjob-backup.sh   # Configurar backups automáticos
+│   ├── setup-cronjob-backup.sh   # Configurar backups automáticos
+│   └── install-k3s.sh           # (Opcional) Instalación de K3s si no lo tienes
 ├── docs/                         # Documentación detallada
 │   ├── INSTALLATION.md           # Guía de instalación
 │   ├── CONFIGURATION.md          # Configuración avanzada
@@ -221,7 +236,7 @@ kubectl rollout restart statefulset mongodb -n mongodb
 
 ## 📚 Documentación Adicional
 
-- [Guía de Instalación Detallada](docs/INSTALLATION.md)
+- [Guía de Instalación Detallada](docs/INSTALLATION.md) (incluye instalación de K3s si no lo tienes)
 - [Configuración Avanzada](docs/CONFIGURATION.md)
 - [Solución de Problemas](docs/TROUBLESHOOTING.md)
 - [Guía de Backups](docs/BACKUP.md)
