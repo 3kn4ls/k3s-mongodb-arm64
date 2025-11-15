@@ -1,0 +1,66 @@
+# Secrets - NUNCA versionar
+k8s/secrets/secret.yaml
+
+# Backups
+mongodb-backups/
+*.tar.gz
+*.zip
+
+# Logs
+*.log
+/var/log/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.npm
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+.dockerignore
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# Temporal
+tmp/
+temp/
+.tmp/
+
+# Certificados
+*.pem
+*.key
+*.crt
+*.csr
+
+# Bases de datos locales
+*.db
+*.sqlite
+*.sqlite3
+
+# Configuraciones locales
+.env
+.env.local
+.env.*.local

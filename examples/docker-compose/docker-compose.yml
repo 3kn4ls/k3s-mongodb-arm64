@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # Aplicación de ejemplo que conecta a MongoDB en K3s
+  app:
+    build: .
+    container_name: mongodb-client-app
+    environment:
+      # Configurar para apuntar a tu MongoDB en K3s
+      MONGO_HOST: 192.168.1.100  # Cambiar por IP de tu Raspberry Pi
+      MONGO_PORT: 30017
+      MONGO_USER: admin
+      MONGO_PASS: changeme
+      MONGO_DB: myapp
+    depends_on:
+      - mongodb-local
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # MongoDB local para desarrollo (opcional)
+  # Comentar si solo quieres usar el MongoDB en K3s
+  mongodb-local:
+    image: mongo:7.0
+    container_name: mongodb-local
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: changeme
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Mongo Express - UI web para MongoDB
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: changeme
+      ME_CONFIG_MONGODB_URL: mongodb://admin:changeme@mongodb-local:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: pass
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mongodb-local
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  mongodb-data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
